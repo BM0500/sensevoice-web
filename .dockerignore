@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+.git
+.vscode
+.idea
+*.md
+
+# Python 虚拟环境与日志
+venv/
+.venv/
+logs/
+*.log
+
+# 前端：容器内会重新构建，避免把宿主的 dist/node_modules 带入
+frontend/node_modules/
+frontend/dist/
+
+# TypeScript / 构建中间产物
+**/*.tsbuildinfo
+
+# 运行时数据：模型、临时文件、日志（运行时通过 docker volume 挂载）
+data/
+
+# 测试 / 杂项
+.env
+.env.local

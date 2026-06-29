@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+.DS_Store
+*.log
+
+# tsc -b 在 composite 项目里 emit 出的 vite.config 编译产物
+# （Vite 直接读 .ts，编译产物无用）
+vite.config.js
+vite.config.d.ts
