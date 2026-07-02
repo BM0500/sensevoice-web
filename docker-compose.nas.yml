@@ -1,0 +1,61 @@
+# ──────────────────────────────────────────────────────────────
+# SenseVoice Web · 绿联 DXP4800 离线 tar 包部署专用 compose
+#
+# 用法（在 NAS 上）：
+#   1. Mac 端：docker build → docker save -o sensevoice-web-2.0.tar sensevoice-web:2.0
+#   2. scp ./sensevoice-web-2.0.tar ./docker-compose.nas.yml ./.env  sun@nas.local:/mnt/dockervol/sensevoice-web/
+#   3. NAS 端：
+#        cd /mnt/dockervol/sensevoice-web
+#        docker load -i sensevoice-web-2.0.tar
+#        docker compose -f docker-compose.nas.yml up -d
+#
+# 与主 docker-compose.yml 的唯一差别：build: .  →  image: sensevoice-web:2.0
+# 这样 NAS 上没有前端源码也能直接启动，不会触发重新 build。
+# ──────────────────────────────────────────────────────────────
+services:
+  sensevoice:
+    image: sensevoice-web:2.0
+    container_name: sensevoice-web
+    # init: 注入 PID 1，自动回收僵尸进程；nice ulimits 才能生效
+    init: true
+    environment:
+      - PORT=${PORT:-8000}
+      # 推理优化（N100 4C4T 调优）
+      - USE_QUANTIZE=${USE_QUANTIZE:-true}
+      - INTRA_OP_THREADS=${INTRA_OP_THREADS:-3}
+      - INTER_OP_THREADS=${INTER_OP_THREADS:-1}
+      - FFMPEG_THREADS=${FFMPEG_THREADS:-1}
+      - SINGLE_FLIGHT=${SINGLE_FLIGHT:-true}
+      - TEMP_DIR=/app/tmp
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    volumes:
+      # 模型本地路径（bind mount 宿主机 ./data/models，对齐 README 的 download_model.py 流程）
+      - ./data/models:/app/models
+      # 临时文件落到持久化卷，避免 /tmp tmpfs 容量小 + 重启丢失
+      - ./data/temp:/app/tmp
+      # 日志持久化
+      - ./data/logs:/app/logs
+    restart: unless-stopped
+    # N100 调度：固定 4 核 + 提升优先级
+    cpuset: "0-3"
+    ulimits:
+      nice: -5
+    # 资源限制（按需调整；N100 总内存 16G 时建议不超过 4G）
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

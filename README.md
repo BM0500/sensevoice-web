@@ -31,6 +31,23 @@ docker compose up -d --build
 open http://localhost:8000
 ```
 
+### 🏗️ 构建说明
+
+**本镜像默认使用 CPU-only 的 torch/torchaudio**（`torch==2.5.1+cpu`），适用于无 GPU 的 NAS（如绿联 DXP4800 N100）。
+
+若需构建特定架构版本：
+
+```bash
+# amd64（NAS / x86 服务器）
+docker buildx build --platform linux/amd64 -t sensevoice-web:latest .
+
+# 导出为 tar 包（用于 NAS 图形化导入）
+docker buildx build --platform linux/amd64 \
+  --output type=docker,dest=./sensevoice-web-amd64.tar .
+```
+
+**已知问题**：funasr 会拉 CUDA 版 torch，请勿修改 `requirements.txt` 中的 torch 版本约束，否则可能导致 `torchaudio` 与 `torch` 版本不兼容（`undefined symbol: aoti_torch_abi_version`）。
+
 ### 本地开发
 
 ```bash

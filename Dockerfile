@@ -1,5 +1,5 @@
 # ─────────── Stage 1: 构建前端 ───────────
-FROM docker.nju.edu.cn/library/node:20-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /build/frontend
 
@@ -14,20 +14,24 @@ COPY frontend/ ./
 RUN npm run build
 
 # ─────────── Stage 2: 后端运行时 ───────────
-FROM docker.nju.edu.cn/library/python:3.10-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# 音频处理依赖（使用国内 apt 源，加快速度）
-RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
-    apt-get update && apt-get install -y --no-install-recommends \
+# 音频处理依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
         libsndfile1 \
         ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 依赖（使用国内 pip 源）
+# torch/torchaudio 锁定版本，通过 extra-index-url 从 PyTorch CPU 源安装
+# funasr 会拉自己的 torch 依赖，由 requirements.txt 中的精确版本约束覆盖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
+RUN pip install --no-cache-dir \
+        -i https://pypi.tuna.tsinghua.edu.cn/simple \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        -r requirements.txt
 
 # 应用代码
 COPY app.py ./
